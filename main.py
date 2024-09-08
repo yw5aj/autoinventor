@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from google.cloud import bigquery
 import pandas as pd
 from datetime import datetime
+from inventor_module import inventor_module
 
 load_dotenv()
 
@@ -109,52 +110,6 @@ def generate_keywords(user_prompt):
     return keywords
 
 
-# Use the input from researcher module to generate a list of possible inventions
-def inventor_module(user_prompt, relevant_patents):
-    print("Generating a list of possible inventions...")
-    
-    # Prepare the input for the AI
-    patent_summaries = relevant_patents.apply(lambda row: f"Title: {row['title']}\nAbstract: {row['abstract']}", axis=1).tolist()
-    patent_input = "\n\n".join(patent_summaries)
-    
-    prompt = f"""
-        Given the following user prompt and summaries of relevant patents, generate three new and innovative ideas that could potentially be patented to address the problem. Each idea should be novel and not directly copy existing patents.
-
-        User Prompt: {user_prompt}
-
-        Relevant Patents:
-        {patent_input}
-
-        Please provide three unique invention ideas, each with a title and a brief description. Format your response as follows:
-
-        1. Invention Title 1
-        Brief description of the invention
-
-        2. Invention Title 2
-        Brief description of the invention
-
-        3. Invention Title 3
-        Brief description of the invention
-
-        Please format your response in Markdown, using appropriate headers for each section.
-        """
-
-    response = client.messages.create(
-        model="claude-3-sonnet-20240229",
-        max_tokens=1000,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
-    
-    invention_ideas = response.content[0].text.strip()
-    print("Generated invention ideas:")
-    print(invention_ideas)
-    
-    return invention_ideas
 
 # Use the input from inventor module to write a report on the best invention
 def writer_module(invention_ideas):
@@ -287,7 +242,7 @@ if __name__ == "__main__":
     # For testing purposes, we will use the test prompt
     # user_prompt = "use 3D printing to create a more efficient and affordable prosthetic leg"
     relevant_patents = researcher_module(user_prompt)
-    invention_ideas = inventor_module(user_prompt, relevant_patents)
+    invention_ideas = inventor_module(client, user_prompt, relevant_patents)
     invention_document = writer_module(invention_ideas)
     patent_document = patentor_module(invention_document)
     final_report_filename = create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, patent_document)
