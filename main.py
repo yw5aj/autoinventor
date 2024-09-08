@@ -13,11 +13,19 @@ from dotenv import load_dotenv
 from google.cloud import bigquery
 import pandas as pd
 from datetime import datetime
+import openai
+import requests
+import graphviz
+import json
+import uuid
 
 load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
+anthropic_client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 # Initialize BigQuery client
 bigquery_client = bigquery.Client()
@@ -92,7 +100,7 @@ def search_patents(keywords):
 
 
 def generate_keywords(user_prompt):
-    response = client.messages.create(
+    response = anthropic_client.messages.create(
         model="claude-3-sonnet-20240229",
         max_tokens=100,
         messages=[
@@ -139,7 +147,7 @@ def inventor_module(user_prompt, relevant_patents):
         Please format your response in Markdown, using appropriate headers for each section.
         """
 
-    response = client.messages.create(
+    response = anthropic_client.messages.create(
         model="claude-3-sonnet-20240229",
         max_tokens=1000,
         messages=[
@@ -176,9 +184,9 @@ def writer_module(invention_ideas):
         Please format your response in Markdown, using appropriate headers for each section.
         """
 
-    response = client.messages.create(
+    response = anthropic_client.messages.create(
         model="claude-3-sonnet-20240229",
-        max_tokens=2000,
+        max_tokens=4096,
         messages=[
             {
                 "role": "user",
@@ -197,9 +205,148 @@ def writer_module(invention_ideas):
     
     return invention_document
 
+
+def diagram_module(invention_document, num_images=2, num_flowcharts=2):
+    print("Generating diagrams for the invention document...")
+
+    # Generate the descriptions of num_images number of images for the invention document
+    response = anthropic_client.messages.create(
+        model="claude-3-sonnet-20240229",
+        max_tokens=3000,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Generate the prompts of {num_images} number of diagrams for the following invention document: {invention_document}. I want to include these diagrams in the final patent, so make them very minimalistic and simple. Ideally only lines and shapes. Format your response with just the descriptions of the diagrams, separated by [separator], each string representing the description of a diagram."
+            }
+        ]
+    )
+
+    # The response content is a list of strings, each string representing the description of a diagram
+    image_descriptions = response.content[0].text.strip().split("[separator]")
+
+    # Clean the empty strings from the list
+    image_descriptions = [description.strip() for description in image_descriptions if description.strip()]
+
+    # Generate the images for the invention document using OpenAI API
+    # Store the image paths and descriptions in a list of dictionaries
+    images = []
+    for image_id, image_description in enumerate(image_descriptions):
+        print(f"Generating image: {image_description}")
+        # Use OpenAI API to generate the image
+        response = openai_client.images.generate(
+            model="dall-e-3",
+            prompt=image_description,
+            n=1,
+            size="1024x1024"
+        )
+        image_url = response.data[0].url
+
+        # Create the images folder if it doesn't exist
+        os.makedirs("images", exist_ok=True)
+
+        # Download the image and save it to the images folder named with image_{number}.png
+        image_response = requests.get(image_url)
+        unique_id = uuid.uuid4().hex[:8]  # Generate a short unique identifier
+        image_path = f"images/image_{unique_id}.png"
+        with open(image_path, "wb") as image_file:
+            image_file.write(image_response.content)
+        print(f"Saved image to {image_path}")
+
+        # Store the image path and description in the list of dictionaries
+        images.append({"id": unique_id, "path": image_path, "description": image_description})
+
+
+    # Now generate flowcharts alongside with the images
+    # Generate the descriptions of num_flowcharts number of flowcharts for the invention document
+    response = anthropic_client.messages.create(
+        model="claude-3-sonnet-20240229",
+        max_tokens=3000,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Generate the prompts of {num_flowcharts} number of flowcharts for the following invention document: {invention_document}. I want to include these flowcharts in the final patent, with graphviz. Format your response with just the descriptions of the flowcharts, separated by [separator], each string representing the description of a flowchart."
+            }
+        ]
+    )
+
+    # The response content is a list of strings, each string representing the description of a flowchart
+    flowchart_descriptions = response.content[0].text.strip().split("[separator]")
+
+    # Clean the empty strings from the list
+    flowchart_descriptions = [description.strip() for description in flowchart_descriptions if description.strip()]
+
+    flowcharts = []
+    # Generate the flowcharts for the invention document using Graphviz
+    for flowchart_id, flowchart_description in enumerate(flowchart_descriptions):
+        print(f"Generating flowchart: {flowchart_description}")
+        # Use Graphviz to generate the flowchart
+        prompt = f"""
+        Based on the following flowchart description, return a JSON object with a 'title' and a list of 'steps'.
+        Each step should be a concise phrase.
+
+        Flowchart description:
+        {flowchart_description}
+
+        Format:
+        {{
+            "title": "Flowchart Title",
+            "steps": [
+                "Step 1",
+                "Step 2",
+                "Step 3",
+                ...
+            ]
+        }}
+        """
+
+        response = anthropic_client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1000,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
+
+        # Parse the JSON response
+        flowchart_data = json.loads(response.content[0].text)
+
+        # Create and save the flowchart in the flowcharts folder
+        os.makedirs("flowcharts", exist_ok=True)
+
+        flowchart = create_flowchart(flowchart_data['title'], flowchart_data['steps'])
+        unique_id = uuid.uuid4().hex[:8]  # Generate a short unique identifier
+        flowchart_path = f"flowcharts/flowchart_{unique_id}"
+        flowchart.render(flowchart_path, format='png', cleanup=True)
+        print(f"Saved flowchart to {flowchart_path}.png")
+
+        # Store the flowchart path and description in the list of dictionaries
+        flowcharts.append({"id": unique_id, "path": f"{flowchart_path}.png", "description": flowchart_description})
+
+    return images, flowcharts
+
+
+def create_flowchart(title, steps):
+    dot = graphviz.Digraph(comment=title)
+    dot.attr(rankdir='TB', size='8,8')
+    
+    for i, step in enumerate(steps):
+        dot.node(f'step_{i}', step)
+        if i > 0:
+            dot.edge(f'step_{i-1}', f'step_{i}')
+    
+    return dot
+
+
 # Use the input from writer module to create a patent for the best invention
-def patentor_module(invention_document):
+def patentor_module(invention_document, images, flowcharts):
     print("Creating a patent document...")
+
+    # Prepare image and flowchart descriptions
+    image_descriptions = "\n".join([f"Figure {i+1}: {img['description']}" for i, img in enumerate(images)])
+    flowchart_descriptions = "\n".join([f"Flowchart {i+1}: {fc['description']}" for i, fc in enumerate(flowcharts)])
 
     prompt = f"""
         Convert the following invention description into a formal patent document. Include the following sections:
@@ -208,7 +355,7 @@ def patentor_module(invention_document):
         2. Field of the Invention
         3. Background of the Invention
         4. Summary of the Invention
-        5. Brief Description of the Drawings (if applicable)
+        5. Brief Description of the Drawings
         6. Detailed Description of the Invention
         7. Claims
         8. Abstract
@@ -218,12 +365,21 @@ def patentor_module(invention_document):
         Invention Document:
         {invention_document}
 
+        Images:
+        {image_descriptions}
+
+        Flowcharts:
+        {flowchart_descriptions}
+
+        In the "Brief Description of the Drawings" section, include descriptions of all images and flowcharts.
+        In the "Detailed Description of the Invention" section, reference the figures and flowcharts where appropriate.
+
         Please format your response in Markdown, using appropriate headers for each section.
         """
 
-    response = client.messages.create(
+    response = anthropic_client.messages.create(
         model="claude-3-sonnet-20240229",
-        max_tokens=4000,
+        max_tokens=4096,
         messages=[
             {
                 "role": "user",
@@ -242,7 +398,7 @@ def patentor_module(invention_document):
     return patent_document
 
 
-def create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, patent_document):
+def create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, images, flowcharts, patent_document):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"auto_inventor_report_{timestamp}.md"
     
@@ -254,6 +410,12 @@ def create_final_report(user_prompt, relevant_patents, invention_ideas, inventio
 {row['abstract']}
         """, axis=1).tolist()
     patents_md = "\n\n".join(patents_md)
+    
+    # Create markdown for images
+    images_md = "\n\n".join([f"![Image {img['id']}]({img['path']})\n\n{img['description']}" for img in images])
+    
+    # Create markdown for flowcharts
+    flowcharts_md = "\n\n".join([f"![Flowchart {fc['id']}]({fc['path']})\n\n{fc['description']}" for fc in flowcharts])
     
     report_content = f"""
 # Auto Inventor Report
@@ -270,7 +432,13 @@ def create_final_report(user_prompt, relevant_patents, invention_ideas, inventio
 ## 4. Invention Document
 {invention_document}
 
-## 5. Patent Document
+## 5. Images
+{images_md}
+
+## 6. Flowcharts
+{flowcharts_md}
+
+## 7. Patent Document
 {patent_document}
         """
 
@@ -289,6 +457,7 @@ if __name__ == "__main__":
     relevant_patents = researcher_module(user_prompt)
     invention_ideas = inventor_module(user_prompt, relevant_patents)
     invention_document = writer_module(invention_ideas)
-    patent_document = patentor_module(invention_document)
-    final_report_filename = create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, patent_document)
+    images, flowcharts = diagram_module(invention_document)
+    patent_document = patentor_module(invention_document, images, flowcharts)
+    final_report_filename = create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, images, flowcharts, patent_document)
     print(f"Final report saved as: {final_report_filename}")

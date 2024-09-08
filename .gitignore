@@ -1,4 +1,5 @@
 .env
 auto_inventor_report_*.md
 *.json
-
+images/
+flowcharts/
