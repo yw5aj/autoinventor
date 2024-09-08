@@ -32,14 +32,14 @@ def user_interface():
 
 
 # Pass the user prompt to the researcher module
-def researcher_module(user_prompt, max_attempts=3):
+def researcher_module(user_prompt, max_attempts=5):
     print("Researching the user prompt...")
     print("User prompt:", user_prompt)
 
     attempts = 0
     patents = pd.DataFrame()
 
-    while len(patents) == 0 and attempts < max_attempts:
+    while len(patents) < 5 and attempts < max_attempts:
         # Generate keywords from the user prompt
         keywords = generate_keywords(user_prompt)
         print("Generated keywords:", ", ".join(keywords))
@@ -188,6 +188,10 @@ def writer_module(invention_ideas):
     )
     
     invention_document = response.content[0].text.strip()
+
+    # Strip the ```markdown and ``` at the beginning and end of the invention document
+    invention_document = invention_document.replace("```markdown", "").replace("```", "")
+
     print("Generated invention description document:")
     print(invention_document)
     
@@ -230,6 +234,8 @@ def patentor_module(invention_document):
     
     patent_document = response.content[0].text.strip()
 
+    # Strip the ```markdown and ``` at the beginning and end of the patent document
+    patent_document = patent_document.replace("```markdown", "").replace("```", "")
      
     print("Generated patent document:")
     print(patent_document)
@@ -240,30 +246,32 @@ def create_final_report(user_prompt, relevant_patents, invention_ideas, inventio
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"auto_inventor_report_{timestamp}.md"
     
-    # Convert relevant patents to a more Markdown-friendly format
-    patents_md = "| publication_number | title | abstract |\n|:-------------------|:------|:---------|\n"
-    for _, row in relevant_patents.iterrows():
-        patents_md += f"| {row['publication_number']} | {row['title']} | {row['abstract']} |\n"
+    # Convert relevant_patents to a text formatted patent summary with title, abstract and publication number
+    patents_md = relevant_patents.apply(lambda row: f"""
+### {row['publication_number']}: {row['title']}
+
+#### Abstract
+{row['abstract']}
+        """, axis=1).tolist()
+    patents_md = "\n\n".join(patents_md)
     
     report_content = f"""
-        # Auto Inventor Report
+# Auto Inventor Report
 
-        ## 1. User Prompt
-        ```markdown
-        {user_prompt}
-        ```
+## 1. User Prompt
+{user_prompt}
 
-        ## 2. Relevant Patents
-        {patents_md}
+## 2. Relevant Patents
+{patents_md}
 
-        ## 3. Invention Ideas
-        {invention_ideas}
+## 3. Invention Ideas
+{invention_ideas}
 
-        ## 4. Invention Document
-        {invention_document}
+## 4. Invention Document
+{invention_document}
 
-        ## 5. Patent Document
-        {patent_document}
+## 5. Patent Document
+{patent_document}
         """
 
     with open(filename, "w", encoding="utf-8") as file:
