@@ -39,7 +39,7 @@ def researcher_module(user_prompt, max_attempts=5):
     attempts = 0
     patents = pd.DataFrame()
 
-    while len(patents) < 5 and attempts < max_attempts:
+    while len(patents) < 3 and attempts < max_attempts:
         # Generate keywords from the user prompt
         keywords = generate_keywords(user_prompt)
         print("Generated keywords:", ", ".join(keywords))
@@ -98,7 +98,7 @@ def generate_keywords(user_prompt):
         messages=[
             {
                 "role": "user",
-                "content": f"Generate a list of 5-10 keywords related to the following invention or problem: {user_prompt}." 
+                "content": f"Generate a list of 5 keywords related to the following invention or problem: {user_prompt}." 
                              "I am going to use these keywords to search for relevant patents and inventions."
                              "Please format the keywords as a comma-separated list."
             }
@@ -283,9 +283,9 @@ def create_final_report(user_prompt, relevant_patents, invention_ideas, inventio
 
 
 if __name__ == "__main__":
-    # user_prompt = user_interface()
+    user_prompt = user_interface()
     # For testing purposes, we will use the test prompt
-    user_prompt = "use 3D printing to create a more efficient and affordable prosthetic leg"
+    # user_prompt = "use 3D printing to create a more efficient and affordable prosthetic leg"
     relevant_patents = researcher_module(user_prompt)
     invention_ideas = inventor_module(user_prompt, relevant_patents)
     invention_document = writer_module(invention_ideas)
