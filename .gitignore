@@ -1,4 +1,4 @@
 .env
-*.md
+auto_inventor_report_*.md
 *.json
 
