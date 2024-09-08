@@ -406,13 +406,13 @@ def create_final_report(user_prompt, relevant_patents, invention_ideas, inventio
 
 
 if __name__ == "__main__":
-    user_prompt = user_interface()
+    # user_prompt = user_interface()
     # For testing purposes, we will use the test prompt
-    # user_prompt = "use 3D printing to create a more efficient and affordable prosthetic leg"
+    user_prompt = "use 3D printing to create a more efficient and affordable prosthetic leg"
     relevant_patents = researcher_module(user_prompt)
-    invention_ideas = inventor_module(client, user_prompt, relevant_patents)
+    invention_ideas = inventor_module(anthropic_client, user_prompt, relevant_patents)
     invention_document = writer_module(invention_ideas)
-    images, flowcharts = diagram_module(invention_document)
-    patent_document = patentor_module(invention_document, images, flowcharts)
-    final_report_filename = create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, images, flowcharts, patent_document)
-    print(f"Final report saved as: {final_report_filename}")
+    # images, flowcharts = diagram_module(invention_document)
+    # patent_document = patentor_module(invention_document, images, flowcharts)
+    # final_report_filename = create_final_report(user_prompt, relevant_patents, invention_ideas, invention_document, images, flowcharts, patent_document)
+    # print(f"Final report saved as: {final_report_filename}")
