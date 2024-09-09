@@ -1,6 +1,8 @@
 # Use the input from researcher module to generate a list of possible inventions
 import os
 from autogen import ConversableAgent
+from datetime import datetime
+
 def inventor_module(client, user_prompt, relevant_patents):
     print("Generating a list of possible inventions...")
     
@@ -30,7 +32,6 @@ def inventor_module(client, user_prompt, relevant_patents):
         Please format your response in Markdown, using appropriate headers for each section.
         """
     
-
     response = client.messages.create(
         model="claude-3-sonnet-20240229",
         max_tokens=1000,
@@ -43,19 +44,18 @@ def inventor_module(client, user_prompt, relevant_patents):
     )
     initial_invention_ideas = response.content[0].text.strip()
 
-
     conversation_start = f"""
-        Hi I am thinking of filing a patent related to {user_prompt}
+Hi I am thinking of filing a patent related to {user_prompt}
 
-        Can you provide some feedbacks on how to improve on my potential invention ideas?
-        {initial_invention_ideas}
+Can you provide some feedbacks on how to improve on my potential invention ideas?
+{initial_invention_ideas}
         """
 
     inventor_reviewer_agent = ConversableAgent(
         "Inventor Reviewer",
         system_message="You are an expert inventor reviewer and you will provide constructive and critical feedback for the inventor's ideas. Only focus on what edits or changes should be improved for each idea. Be sharp",
         llm_config={"config_list": [{"model": "claude-3-sonnet-20240229", "temperature": 0.7, "api_key": os.environ.get("ANTHROPIC_API_KEY"), "api_type":"anthropic"}]},
-        human_input_mode="NEVER",  # Never ask for human input.
+        human_input_mode="ALWAYS",  
     )
 
     inventor_agent = ConversableAgent(
@@ -71,13 +71,13 @@ def inventor_module(client, user_prompt, relevant_patents):
         3. Invention Title 3
         Brief description of the invention""",
         llm_config={"config_list": [{"model": "claude-3-sonnet-20240229", "temperature": 0.7, "api_key": os.environ.get("ANTHROPIC_API_KEY"), "api_type":"anthropic"}]},
-        human_input_mode="ALWAYS",  # Never ask for human input.
+        human_input_mode="NEVER",  # Never ask for human input.
     )
 
     carryover = f"""
-        Here are some relevant patents related to {user_prompt}
-        Relevant Patents:
-        {patent_input}
+Here are some relevant patents related to {user_prompt}
+Relevant Patents:
+{patent_input}
     """
     
     chat_result = inventor_agent.initiate_chat(
@@ -86,9 +86,39 @@ def inventor_module(client, user_prompt, relevant_patents):
         carryover=carryover,
         max_turns=3,
     )
+
+    # TODO: modify the code to have the inventor to reply to the last message, and include that in the chat history
+    # Extract the invention ideas from the last message
     invention_ideas = chat_result.chat_history[-2]['content']
     
     print("Generated invention ideas:")
     print(invention_ideas)
     
-    return invention_ideas
+    # Save chat history to a file
+    chat_history_filename = save_chat_history(chat_result.chat_history[:-1])
+    
+    return invention_ideas, chat_result.chat_history, chat_history_filename
+
+def format_chat_history_as_markdown(chat_history):
+    markdown_output = "# Invention Ideas Generation Chat History\n\n"
+    for i, message in enumerate(chat_history):
+        # Determine the agent name based on the message index
+        if i % 2 == 0:
+            name = "Inventor"
+        else:
+            name = "Inventor Reviewer"
+        
+        content = message['content']
+        markdown_output += f"## {name}\n\n{content}\n\n"
+    return markdown_output
+
+def save_chat_history(chat_history):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    chat_history_filename = f"chat_history_{timestamp}.md"
+    
+    chat_history_md = format_chat_history_as_markdown(chat_history)
+    with open(chat_history_filename, "w", encoding="utf-8") as file:
+        file.write(chat_history_md)
+    
+    print(f"Chat history saved as: {chat_history_filename}")
+    return chat_history_filename

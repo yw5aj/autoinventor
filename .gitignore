@@ -1,5 +1,6 @@
 .env
 auto_inventor_report_*.md
+chat_history_*.md
 *.json
 images/
 flowcharts/
