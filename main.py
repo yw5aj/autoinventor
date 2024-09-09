@@ -408,10 +408,10 @@ def create_final_report(user_prompt, relevant_patents, invention_ideas, inventio
     report_content = f"""
 # Auto Inventor Report
 
-## 1. User Prompt
+## 1. Proposed Invention Directions
 {user_prompt}
 
-## 2. Relevant Patents
+## 2. Related Research
 {patents_md}
 
 ## 3. Invention Ideas
