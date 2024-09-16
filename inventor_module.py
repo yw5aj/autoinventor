@@ -97,7 +97,7 @@ Relevant Patents:
     # Save chat history to a file
     chat_history_filename = save_chat_history(chat_result.chat_history[:-1])
     
-    return invention_ideas, chat_result.chat_history, chat_history_filename
+    return invention_ideas
 
 def format_chat_history_as_markdown(chat_history):
     markdown_output = "# Invention Ideas Generation Chat History\n\n"
