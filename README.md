@@ -9,11 +9,13 @@ Auto Inventor is an AI-powered tool that leverages Large Language Models (LLMs) 
 - Detailed invention description creation
 - Initial patent document drafting
 - Comprehensive final report generation
+- Multi-format input processing (text, PDF, Word, audio, HTML)
 
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
 - Python 3.7+
+- An OpenAI API key
 - An Anthropic API key
 - Access to Google Cloud Platform and BigQuery
 - Google Cloud credentials set up
@@ -33,9 +35,10 @@ Before you begin, ensure you have met the following requirements:
 
 3. Set up your environment variables:
    - Create a `.env` file in the project root
-   - Add your Anthropic API key:
+   - Add your API keys:
      ```
-     ANTHROPIC_API_KEY=your_api_key_here
+     OPENAI_API_KEY=your_openai_api_key_here
+     ANTHROPIC_API_KEY=your_anthropic_api_key_here
      ```
    - Set up your Google Cloud credentials as per Google Cloud documentation
 
@@ -46,19 +49,28 @@ Before you begin, ensure you have met the following requirements:
    python main.py
    ```
 
-2. Enter your invention prompt when prompted.
+2. When prompted, you can:
+   - Enter a text prompt describing your invention idea
+   - Provide a path to a folder containing relevant files (PDF, Word, text, audio, HTML)
 
-3. The script will generate a comprehensive report including:
+3. The script will process your input and generate a comprehensive report including:
    - Relevant patents
    - New invention ideas
    - Detailed invention description
    - Initial patent document
+   - Generated images and flowcharts
 
 4. The final report will be saved as a Markdown file in the project directory.
 
 ## Project Structure
 
 - `main.py`: The main script that orchestrates the entire process
+- `user_interface.py`: Handles user input and file processing
+- `inventor_module.py`: Generates invention ideas based on input and patents
+- `researcher_module.py`: Searches for relevant patents
+- `writer_module.py`: Creates detailed invention descriptions
+- `diagram_module.py`: Generates images and flowcharts
+- `patentor_module.py`: Drafts initial patent documents
 - `requirements.txt`: List of Python package dependencies
 - `README.md`: This file, containing project documentation
 
@@ -72,7 +84,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgements
 
-- Anthropic for their powerful Claude AI model
+- OpenAI for their GPT models
+- Anthropic for their Claude AI model
 - Google for providing access to the Patents Public Dataset
 
 ## Disclaimer

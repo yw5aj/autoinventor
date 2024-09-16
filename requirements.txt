@@ -5,3 +5,9 @@ python-dotenv==1.0.0
 pydantic==1.10.8
 db_dtypes==1.3.0
 pyautogen[anthropic]
+openai==1.3.0
+pymupdf4llm==0.1.1
+beautifulsoup4==4.12.2
+markdown==3.5.1
+docx2txt==0.8
+requests==2.31.0
